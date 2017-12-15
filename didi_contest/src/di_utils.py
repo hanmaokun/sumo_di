@@ -7,6 +7,7 @@ import random
 from matplotlib import pyplot as plt
 import numpy as np
 import os,sys
+import math
 
 X_OFS = 1000
 Y_OFS = 1000
@@ -111,7 +112,17 @@ def draw_veihcle_track(di_track_file, plot_all=True):
 				plt.scatter(x, y)
 				plt.show()
 
+def calc_distance():
+	node_coords = [521780, 55117]
+	vehicle_coords_depart = [521696.473915, 55061.506951]
+	vehicle_coords_arrive = [521680.892788, 55051.685121]
+
+	print(math.sqrt((node_coords[0] - vehicle_coords_depart[0])**2 + (node_coords[1] - vehicle_coords_depart[1])**2))
+	print(math.sqrt((node_coords[0] - vehicle_coords_arrive[0])**2 + (node_coords[1] - vehicle_coords_arrive[1])**2))
+
 if __name__ == '__main__':
     random.seed(200)
+
+    calc_distance()
     #track_stats(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
-    draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
+    #draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')

@@ -22,7 +22,8 @@
 <edge id="edgeL-5_0-5" from="node5_0" to="node5" priority="75" numLanes="1" speed="40" />  
 <edge id="edgeL-5_1-5" from="node5_1" to="node5" priority="75" numLanes="1" speed="40" />  
 <edge id="edgeL-6_0-6" from="node6_0" to="node6" priority="75" numLanes="1" speed="40" />  
-<edge id="edgeL-6_1-6" from="node6_1" to="node6" priority="75" numLanes="1" speed="40" />  
+<edge id="edgeL-6_1-6" from="node6_1" to="node6" priority="75" numLanes="1" speed="40" />
+<edge id="edgeL-6-6_0" from="node6" to="node6_0" priority="75" numLanes="1" speed="40" />  
 <edge id="edgeL-7_0-7" from="node7_0" to="node7" priority="75" numLanes="1" speed="40" />  
 <edge id="edgeL-7_1-7" from="node7_1" to="node7" priority="75" numLanes="1" speed="40" />  
 <edge id="edgeL-7_2-7" from="node7_2" to="node7" priority="75" numLanes="1" speed="40" />  
