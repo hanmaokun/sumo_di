@@ -126,12 +126,12 @@ def draw_veihcle_track(di_track_file, plot_all=True):
 				plt.show()
 
 def calc_distance():
-	node_coords = [521780, 55117]
-	vehicle_coords_depart = [521696.473915, 55061.506951]
+	node_coords = [521411, 54822]
+	vehicle_coords_depart = [521400, 53998]
 	vehicle_coords_arrive = [521509.502259, 54947.216566]
 
 	print(math.sqrt((node_coords[0] - vehicle_coords_depart[0])**2 + (node_coords[1] - vehicle_coords_depart[1])**2))
-	print(math.sqrt((node_coords[0] - vehicle_coords_arrive[0])**2 + (node_coords[1] - vehicle_coords_arrive[1])**2))
+	#print(math.sqrt((node_coords[0] - vehicle_coords_arrive[0])**2 + (node_coords[1] - vehicle_coords_arrive[1])**2))
 
 routes_nodirection = ['1#2', '2#3', '3#4', '4#5', '5#6', '6#7', \
 						'1_0#1', '1_1#1', '1_2#1', \
@@ -144,7 +144,7 @@ routes_nodirection = ['1#2', '2#3', '3#4', '4#5', '5#6', '6#7', \
 					]
 routes_coords = [[[521677, 58109], [521580,57466]], [[521580, 57466], [521520,57059]], [[521520, 57059], [521452,56668]], \
 				 [[521452, 56668], [521433,55855]], [[521433, 55855], [521411,54822]], [[521411, 54822], [521400,53998]], \
-				 [[521296, 58295], [512677,58109]], [[521729, 58722], [512677,58109]], [[521769, 58107], [512677,58109]], \
+				 [[521296, 58295], [521677,58109]], [[521729, 58722], [521677,58109]], [[521769, 58107], [521677,58109]], \
 				 [[521542, 57515], [521580,57466]], \
 				 [[521387, 57093], [521520,57059]], [[521732, 57032], [521520,57059]], \
 				 [[520955, 56693], [521452,56668]], [[521920, 56605], [521452,56668]], \
@@ -153,8 +153,11 @@ routes_coords = [[[521677, 58109], [521580,57466]], [[521580, 57466], [521520,57
 				 [[521000, 53960], [521400,53998], [521417, 53371], [521400,53998], [521856, 54023], [521400,53998]] \
 				]
 
+def distance(p0, p1):
+    return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
+
 def find_route(vehicle_track):
-	x_ofs = 0
+	x_ofs = 10
 	y_ofs = 0
 	_, start_x, start_y, _ = vehicle_track[0]
 	_, stop_x, stop_y, _  = vehicle_track[-1]
@@ -172,23 +175,22 @@ def find_route(vehicle_track):
 		P3 = np.array([start_x, start_y])
 		dist_start = norm(np.cross(P2-P1, P1-P3))/norm(P2-P1)
 		if dist_start < dist_start_min:
-			if P3[0] > min(P1[0], P2[0])-x_ofs and P3[0] < max(P1[0], P2[0])+x_ofs:
+			if P3[0] > (min(P1[0], P2[0])-x_ofs) and P3[0] < (max(P1[0], P2[0])+x_ofs):
 				#and P3[1] > min(P1[1], P2[1])-y_ofs and P3[1] < max(P1[1], P2[1])+y_ofs:
-				dist_start_min = dist_start
-				start_idx = k
+				if distance(P3, P1) < distance(P1, P2):
+					dist_start_min = dist_start
+					start_idx = k
 		
 		P3 = np.array([stop_x, stop_y])
 		dist_stop = norm(np.cross(P2-P1, P1-P3))/norm(P2-P1)
 		if dist_stop < dist_stop_min:
 			if P3[0] > min(P1[0], P2[0])-x_ofs and P3[0] < max(P1[0], P2[0])+x_ofs:
 				#and P3[1] > min(P1[1], P2[1])-y_ofs and P3[1] < max(P1[1], P2[1])+y_ofs:
-				dist_stop_min = dist_stop
-				stop_idx = k
+				if distance(P3, P1) < distance(P1, P2):
+					dist_stop_min = dist_stop
+					stop_idx = k
 
 	return start_idx, stop_idx
-
-def distance(p0, p1):
-    return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
 
 def link_nodes(start_node, stop_nodes, routes_dict, node_lists, parent_node):
 	next_nodes = routes_dict[start_node]
@@ -293,7 +295,7 @@ def gen_routes(di_track_file):
 	line_coords = []
 	vehicle_tracks = {}
 	lines = f_track.readlines()
-	for line in lines[1:5000]:
+	for line in lines[1:]:
 		line = line.split(',')
 		vehicle_id = line[0]
 		timestamp = line[1]
@@ -313,11 +315,13 @@ def gen_routes(di_track_file):
 			vehicle_tracks[vehicle_id].append([])
 			vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
 
-	f_auto_gen_routes_xml.write('<routes>\n')
-	f_auto_gen_routes_xml.write('   <vType id="type1" accel="0.8" decel="4.5" sigma="0.5" length="5" maxSpeed="70"/>\n')
+	route_lists = []
 	for vehicle_id in vehicle_tracks:
 		for k, vehicle_track in enumerate(vehicle_tracks[vehicle_id]):
 			cur_vehicle_id = vehicle_id + '_' + str(k)
+
+			if cur_vehicle_id == "0e83daf2710839ed7c68d5626558e695_5":
+				print(cur_vehicle_id)
 
 			timestamp_start, start_pos_x, start_pos_y, depart_spd = vehicle_track[0]
 			timestamp_stop, stop_pos_x, stop_pos_y, arrival_spd = vehicle_track[-1]
@@ -337,15 +341,26 @@ def gen_routes(di_track_file):
 
 			depart_pos, arrival_pos = get_pos(routes_list, vehicle_pos)
 
-			vehicle_content_str = '   <vehicle id="%s" type="type1" depart="%s" color="1,1,0" departPos="%s" \
-				departSpeed="%s"  arrivalPos="%s" arrivalSpeed="%s">\n' % (\
-				cur_vehicle_id, str(timestamp_start), str(depart_pos), str(depart_spd), str(arrival_pos), str(arrival_spd))
+			route_lists.append([cur_vehicle_id, timestamp_start, depart_pos, depart_spd, arrival_pos, arrival_spd, routes_str])
 
-			route_content_str = '      <route edges="%s"/>\n' % (routes_str)
+	f_auto_gen_routes_xml.write('<routes>\n')
+	f_auto_gen_routes_xml.write('   <vType id="type1" accel="0.8" decel="4.5" sigma="0.5" length="5" maxSpeed="70"/>\n')
 
-			f_auto_gen_routes_xml.write(vehicle_content_str)
-			f_auto_gen_routes_xml.write(route_content_str)
-			f_auto_gen_routes_xml.write('   </vehicle>\n')
+	sorted_route_lists = sorted(route_lists,key=lambda x: x[1])
+
+	for route_info in sorted_route_lists:
+		cur_vehicle_id, timestamp_start, depart_pos, depart_spd, arrival_pos, arrival_spd, routes_str = route_info
+
+		vehicle_content_str = '   <vehicle id="%s" type="type1" depart="%s" color="1,1,0" departPos="%s" \
+			departSpeed="%s"  arrivalPos="%s" arrivalSpeed="%s">\n' % (\
+			cur_vehicle_id, str(timestamp_start), str(depart_pos), str(depart_spd), str(arrival_pos), str(arrival_spd))
+
+		route_content_str = '      <route edges="%s"/>\n' % (routes_str)
+
+		f_auto_gen_routes_xml.write(vehicle_content_str)
+		f_auto_gen_routes_xml.write(route_content_str)
+		f_auto_gen_routes_xml.write('   </vehicle>\n')
+
 	f_auto_gen_routes_xml.write('</routes>\n')
 	f_auto_gen_routes_xml.close()
 
