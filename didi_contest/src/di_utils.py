@@ -13,13 +13,18 @@ from numpy.linalg import norm
 X_OFS = 1000
 Y_OFS = 1000
 
+TIMESTAMP_BASE = 1493852410.0
+TIMESTAMP_MAX  = 1494982799.0
+
 def track_stats(di_track_file):
 	f_track = open(di_track_file, 'r')
-	lines = f_track.readlines(60000)
+	lines = f_track.readlines()
 	min_x = sys.float_info.max
 	max_x = 0
 	min_y = sys.float_info.max
 	max_y = 0
+	min_t = sys.float_info.max
+	max_t = 0
 	for line in lines[1:]:
 		line = line.split(',')
 		vehicle_id = line[0]
@@ -28,6 +33,11 @@ def track_stats(di_track_file):
 		y_coordinate = line[3]
 		speed = line[4]
 		category = line[5]
+
+		if float(timestamp) < min_t:
+			min_t = float(timestamp)
+		elif float(timestamp) > max_t:
+			max_t = float(timestamp)
 
 		x_coord = float(x_coordinate)
 		y_coord = float(y_coordinate)
@@ -46,6 +56,8 @@ def track_stats(di_track_file):
 	print(max_x)
 	print(min_y)
 	print(max_y)
+	print(max_t)
+	print(min_t)
 
 coords = []
 
@@ -144,8 +156,8 @@ routes_coords = [[[521677, 58109], [521580,57466]], [[521580, 57466], [521520,57
 def find_route(vehicle_track):
 	x_ofs = 0
 	y_ofs = 0
-	_, start_x, start_y = vehicle_track[0]
-	_, stop_x, stop_y  = vehicle_track[-1]
+	_, start_x, start_y, _ = vehicle_track[0]
+	_, stop_x, stop_y, _  = vehicle_track[-1]
 	dist_start_min =  sys.float_info.max
 	dist_stop_min =  sys.float_info.max
 	start_idx = 0
@@ -240,8 +252,8 @@ def find_route_name(start_idx, stop_idx, vehicle_track):
 			routes_list.append('edgeL-' + node_lists[k] + '-' + node_lists[k+1])
 		return routes_list
 	else:
-		_, start_x, start_y = vehicle_track[0]
-		_, stop_x, stop_y  = vehicle_track[-1]
+		start_x, start_y = vehicle_track[0]
+		stop_x, stop_y   = vehicle_track[-1]
 		name_route_nodes = routes_nodirection[start_idx].split('#')
 		scale_route_nodes = routes_coords[start_idx]
 		dist_start = distance(scale_route_nodes[0], [start_x, start_y])
@@ -250,14 +262,38 @@ def find_route_name(start_idx, stop_idx, vehicle_track):
 			route_name = 'edgeL-' + name_route_nodes[0] + '-' + name_route_nodes[1]
 		else:
 			route_name = 'edgeL-' + name_route_nodes[1] + '-' + name_route_nodes[0]
-		return [route_name, route_name]
+		return [route_name]
+
+def get_rel_pos(route, start_pos):
+	depart_nodes = route.split('-')
+	route_nodir = depart_nodes[1] + '#' + depart_nodes[2]
+	if route_nodir in routes_nodirection:
+		idx = routes_nodirection.index(route_nodir)
+		nodes = routes_coords[idx]
+		start_node_coord = nodes[0]
+	else:
+		route_nodir = depart_nodes[2] + '#' + depart_nodes[1]
+		idx = routes_nodirection.index(route_nodir)
+		nodes = routes_coords[idx]
+		start_node_coord = nodes[1]
+	depart_pos = distance(start_node_coord, start_pos)
+	return depart_pos
+
+def get_pos(routes, track):
+	depart_route = routes[0]
+	arrival_route = routes[-1]
+	depart_position = get_rel_pos(depart_route, track[0])
+	arrival_position = get_rel_pos(arrival_route, track[-1])
+
+	return depart_position, arrival_position
 
 def gen_routes(di_track_file):
+	f_auto_gen_routes_xml = open('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto.rou.xml', 'w')
 	f_track = open(di_track_file, 'r')
 	line_coords = []
 	vehicle_tracks = {}
 	lines = f_track.readlines()
-	for line in lines[1:]:
+	for line in lines[1:5000]:
 		line = line.split(',')
 		vehicle_id = line[0]
 		timestamp = line[1]
@@ -266,24 +302,52 @@ def gen_routes(di_track_file):
 		speed = line[4]
 		category = line[5]
 		if vehicle_id in vehicle_tracks.keys():
-			last_timestamp, _, _ = vehicle_tracks[vehicle_id][-1][-1]
+			last_timestamp, _, _, _ = vehicle_tracks[vehicle_id][-1][-1]
 			if float(timestamp) - float(last_timestamp) > 4:
 				vehicle_tracks[vehicle_id].append([])
-				vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate)])
+				vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
 			else:
-				vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate)])
+				vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
 		else:
 			vehicle_tracks[vehicle_id] = []
 			vehicle_tracks[vehicle_id].append([])
-			vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate)])
+			vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
 
+	f_auto_gen_routes_xml.write('<routes>\n')
+	f_auto_gen_routes_xml.write('   <vType id="type1" accel="0.8" decel="4.5" sigma="0.5" length="5" maxSpeed="70"/>\n')
 	for vehicle_id in vehicle_tracks:
-		for vehicle_track in vehicle_tracks[vehicle_id]:
+		for k, vehicle_track in enumerate(vehicle_tracks[vehicle_id]):
+			cur_vehicle_id = vehicle_id + '_' + str(k)
+
+			timestamp_start, start_pos_x, start_pos_y, depart_spd = vehicle_track[0]
+			timestamp_stop, stop_pos_x, stop_pos_y, arrival_spd = vehicle_track[-1]
+			timestamp_start -= TIMESTAMP_BASE
+			timestamp_stop  -= TIMESTAMP_BASE
+
+			vehicle_pos = []
+			vehicle_pos.append([start_pos_x, start_pos_y])
+			vehicle_pos.append([stop_pos_x, stop_pos_y])			
+
 			start_idx, stop_idx = find_route(vehicle_track)
 			print(str(start_idx) + ',' + str(stop_idx))
-			routes_list = find_route_name(start_idx, stop_idx, vehicle_track)
-			for route in routes_list:
-				print(route)
+			routes_list = find_route_name(start_idx, stop_idx, vehicle_pos)
+			#for route in routes_list:
+			#	print(route)
+			routes_str = ' '.join(routes_list)
+
+			depart_pos, arrival_pos = get_pos(routes_list, vehicle_pos)
+
+			vehicle_content_str = '   <vehicle id="%s" type="type1" depart="%s" color="1,1,0" departPos="%s" \
+				departSpeed="%s"  arrivalPos="%s" arrivalSpeed="%s">\n' % (\
+				cur_vehicle_id, str(timestamp_start), str(depart_pos), str(depart_spd), str(arrival_pos), str(arrival_spd))
+
+			route_content_str = '      <route edges="%s"/>\n' % (routes_str)
+
+			f_auto_gen_routes_xml.write(vehicle_content_str)
+			f_auto_gen_routes_xml.write(route_content_str)
+			f_auto_gen_routes_xml.write('   </vehicle>\n')
+	f_auto_gen_routes_xml.write('</routes>\n')
+	f_auto_gen_routes_xml.close()
 
 if __name__ == '__main__':
     random.seed(200)

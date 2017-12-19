@@ -1,10 +1,10 @@
 <edges> 
-<edge id="edgeR-1-2" from="node1" to="node2" priority="75" numLanes="1" speed="40" width="30"/>
-<edge id="edgeR-2-3" from="node2" to="node3" priority="75" numLanes="1" speed="40" width="30"/>
-<edge id="edgeR-3-4" from="node3" to="node4" priority="75" numLanes="1" speed="40" width="30"/>
-<edge id="edgeR-4-5" from="node4" to="node5" priority="75" numLanes="1" speed="40" width="30"/>
-<edge id="edgeR-5-6" from="node5" to="node6" priority="75" numLanes="1" speed="40" width="30"/>
-<edge id="edgeR-6-7" from="node6" to="node7" priority="75" numLanes="1" speed="40" width="30"/>
+<edge id="edgeL-1-2" from="node1" to="node2" priority="75" numLanes="1" speed="40" width="30"/>
+<edge id="edgeL-2-3" from="node2" to="node3" priority="75" numLanes="1" speed="40" width="30"/>
+<edge id="edgeL-3-4" from="node3" to="node4" priority="75" numLanes="1" speed="40" width="30"/>
+<edge id="edgeL-4-5" from="node4" to="node5" priority="75" numLanes="1" speed="40" width="30"/>
+<edge id="edgeL-5-6" from="node5" to="node6" priority="75" numLanes="1" speed="40" width="30"/>
+<edge id="edgeL-6-7" from="node6" to="node7" priority="75" numLanes="1" speed="40" width="30"/>
 <edge id="edgeL-7-6" from="node7" to="node6" priority="75" numLanes="1" speed="40" width="30"/>
 <edge id="edgeL-6-5" from="node6" to="node5" priority="75" numLanes="1" speed="40" width="30"/>
 <edge id="edgeL-5-4" from="node5" to="node4" priority="75" numLanes="1" speed="40" width="30"/>
