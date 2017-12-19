@@ -1,7 +1,7 @@
 <routes>
    <vType id="type1" accel="0.8" decel="4.5" sigma="0.5" length="5" maxSpeed="70"/>
 
-   <vehicle id="4c0c4745067197be22182d262b44f48a" type="type1" depart="0" color="1,1,0" departPos="100" departSpeed="6.6" arrivalLane="current" arrivalPos="318" arrivalSpeed="6.1">
+   <vehicle id="4c0c4745067197be22182d262b44f48a" type="type1" depart="0" color="1,1,0" departPos="100" departSpeed="6.6"  arrivalPos="319" arrivalSpeed="6.1">
       <route edges="edgeL-6_1-6 edgeL-6-6_0"/>
    </vehicle>
 
