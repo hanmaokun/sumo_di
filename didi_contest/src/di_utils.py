@@ -207,9 +207,9 @@ def gen_route_coords(net_xml_file):
 
 	return routes_coords_
 
-def is_on_route(vehicle_coord, line_end_a, line_end_b):
+def is_on_route(vehicle_coord, line_end_a, line_end_b, route_width):
 	distance = norm(np.cross(line_end_b-line_end_a, line_end_a-vehicle_coord))/norm(line_end_b-line_end_a)
-	if distance > 30:
+	if distance > route_width:
 		return False
 
 	# 'https://stackoverflow.com/questions/1811549/perpendicular-on-a-line-from-a-given-point'
@@ -232,44 +232,70 @@ def is_on_route(vehicle_coord, line_end_a, line_end_b):
 	x4 = x1 + u * px
 	y4 = y1 + u * py
 
-	if (((x4 < x2) and (x4 > x1)) or ((x4 > x2) and (x4 < x1))) and \
-		(((y4 < y2) and (y4 > y1)) or ((y4 > y2) and (y4 < y1))):
+	if (((x4 <= x2) and (x4 >= x1)) or ((x4 >= x2) and (x4 <= x1))) and \
+		(((y4 <= y2) and (y4 >= y1)) or ((y4 >= y2) and (y4 <= y1))):
 		return True
 	else:
 		return False
 
 def find_route(vehicle_track, routes_coords):
-	ROUTE_WIDTH = 30
-	x_ofs = 10
-	y_ofs = 0
+	ROUTE_WIDTH = 20
 	_, start_x, start_y, _ = vehicle_track[0]
-	_, stop_x, stop_y, _  = vehicle_track[-1]
-	dist_start_min =  sys.float_info.max
-	dist_stop_min =  sys.float_info.max
 	start_idx = 0
-	stop_idx = 0
 	start_is_on_route = False
-	stop_is_on_route = False
-	for k, route_coord in enumerate(routes_coords):
-		P1 = np.array(route_coord[0])
-		P2 = np.array(route_coord[1])
 
-		if not start_is_on_route:
-			P3 = np.array([start_x, start_y])
-			start_is_on_route = is_on_route(P3, P1, P2)
-			if start_is_on_route:
-				start_idx = k
-		
-		if not stop_is_on_route:
-			P3 = np.array([stop_x, stop_y])
-			stop_is_on_route = is_on_route(P3, P1, P2)
-			if stop_is_on_route:
-				stop_idx = k
+	while not start_is_on_route:
+		for k, route_coord in enumerate(routes_coords):
+			P1 = np.array(route_coord[0])
+			P2 = np.array(route_coord[1])
+
+			if not start_is_on_route:
+				P3 = np.array([start_x, start_y])
+				start_is_on_route = is_on_route(P3, P1, P2, ROUTE_WIDTH)
+				if start_is_on_route:
+					start_idx = k
+					break
+		if start_is_on_route:
+			break
+
+		vehicle_track.pop(0)
+		if len(vehicle_track) == 0:
+			break
+
+		_, start_x, start_y, _ = vehicle_track[0]
+
+
+	if len(vehicle_track) < 2:
+		return -1, -1, vehicle_track
+
+	_, stop_x, stop_y, _  = vehicle_track[-1]
+	stop_idx = 0
+	stop_is_on_route = False
+
+	while not stop_is_on_route:
+		for k, route_coord in enumerate(routes_coords):
+			P1 = np.array(route_coord[0])
+			P2 = np.array(route_coord[1])
+			
+			if not stop_is_on_route:
+				P3 = np.array([stop_x, stop_y])
+				stop_is_on_route = is_on_route(P3, P1, P2, ROUTE_WIDTH)
+				if stop_is_on_route:
+					stop_idx = k
+					break
+		if stop_is_on_route:
+			break
+
+		vehicle_track.pop(-1)
+		if len(vehicle_track) < 2:
+			break
+
+		_, stop_x, stop_y, _ = vehicle_track[-1]
 
 	if start_is_on_route and stop_is_on_route:
-		return start_idx, stop_idx
+		return start_idx, stop_idx, vehicle_track
 	else:
-		return -1, -1
+		return -1, -1, vehicle_track
 
 def link_nodes(start_node, stop_nodes, routes_dict, node_lists, parent_node):
 	next_nodes = routes_dict[start_node]
@@ -404,22 +430,23 @@ def gen_routes(di_track_file):
 			if cur_vehicle_id == "0e83daf2710839ed7c68d5626558e695_5":
 				print(cur_vehicle_id)
 
-			timestamp_start, start_pos_x, start_pos_y, depart_spd = vehicle_track[0]
-			timestamp_stop, stop_pos_x, stop_pos_y, arrival_spd = vehicle_track[-1]
+			fined_route_coords = gen_route_coords('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di.net.xml')		
+
+			start_idx, stop_idx, fine_vehicle_track = find_route(vehicle_track, fined_route_coords)
+			print(str(start_idx) + ',' + str(stop_idx))
+			if start_idx == -1 and stop_idx == -1:
+				invalid_tracks_ctr += 1
+				print("invalid vehicle track len: " + str(len(fine_vehicle_track)))
+				continue
+
+			timestamp_start, start_pos_x, start_pos_y, depart_spd = fine_vehicle_track[0]
+			timestamp_stop, stop_pos_x, stop_pos_y, arrival_spd = fine_vehicle_track[-1]
 			timestamp_start -= TIMESTAMP_BASE
 			timestamp_stop  -= TIMESTAMP_BASE
 
 			vehicle_pos = []
 			vehicle_pos.append([start_pos_x, start_pos_y])
 			vehicle_pos.append([stop_pos_x, stop_pos_y])	
-
-			fined_route_coords = gen_route_coords('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di.net.xml')		
-
-			start_idx, stop_idx = find_route(vehicle_track, fined_route_coords)
-			print(str(start_idx) + ',' + str(stop_idx))
-			if start_idx == -1 and stop_idx == -1:
-				invalid_tracks_ctr += 1
-				continue
 
 			routes_list = find_route_name(start_idx, stop_idx, vehicle_pos, fined_route_coords)
 			#for route in routes_list:
