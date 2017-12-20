@@ -9,6 +9,7 @@ import numpy as np
 import os,sys
 import math
 from numpy.linalg import norm
+import xml.etree.cElementTree as ET
 
 X_OFS = 1000
 Y_OFS = 1000
@@ -157,7 +158,88 @@ routes_coords = [[[521677, 58109], [521580,57466]], [[521580, 57466], [521520,57
 def distance(p0, p1):
     return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
 
-def find_route(vehicle_track):
+def list_mean(lst):
+	return reduce(lambda x, y: x + y, lst) / len(lst)
+
+def gen_route_coords(net_xml_file):
+	SUMO_X_OFS = 520955
+	SUMO_Y_OFS = 53371
+	net_tree = ET.ElementTree(file=net_xml_file)
+	net_tree_root = net_tree.getroot()
+	edges = net_tree_root.findall('edge')
+
+	routes_coords_ = []
+
+	for route_nodir in routes_nodirection:
+		route_coord_ = []
+		routes = route_nodir.split('#')
+		edge_a_name = 'edgeL-' + routes[0] + '-' + routes[1]
+		edge_b_name = 'edgeL-' + routes[1] + '-' + routes[0]
+		start_x = []
+		start_y = []
+		stop_x = []
+		stop_y = []
+		for edge in edges:
+			cur_edge_id = edge.attrib['id']
+			lane = edge.find('lane')
+			shape_str = lane.attrib['shape']
+			shapes_str = shape_str.split(' ')
+			start_coord_str = shapes_str[0].split(',')
+			stop_coord_str = shapes_str[1].split(',')
+			if (cur_edge_id == edge_a_name):
+				start_x.append(float(start_coord_str[0]))
+				start_y.append(float(start_coord_str[1]))
+				stop_x.append(float(stop_coord_str[0]))
+				stop_y.append(float(stop_coord_str[1]))
+			if (cur_edge_id == edge_b_name):
+				stop_x.append(float(start_coord_str[0]))
+				stop_y.append(float(start_coord_str[1]))
+				start_x.append(float(stop_coord_str[0]))
+				start_y.append(float(stop_coord_str[1]))
+
+		start_x_center = list_mean(start_x) + SUMO_X_OFS
+		start_y_center = list_mean(start_y) + SUMO_Y_OFS
+		stop_x_center = list_mean(stop_x) + SUMO_X_OFS
+		stop_y_center = list_mean(stop_y) + SUMO_Y_OFS
+		route_coord_.append([start_x_center, start_y_center])
+		route_coord_.append([stop_x_center, stop_y_center])
+		routes_coords_.append(route_coord_)
+
+	return routes_coords_
+
+def is_on_route(vehicle_coord, line_end_a, line_end_b):
+	distance = norm(np.cross(line_end_b-line_end_a, line_end_a-vehicle_coord))/norm(line_end_b-line_end_a)
+	if distance > 30:
+		return False
+
+	# 'https://stackoverflow.com/questions/1811549/perpendicular-on-a-line-from-a-given-point'
+	#  :calc the perpendicular cross point to a line from given point.
+	# x3, y3 = vehicle_coord
+	# x1, y1 = line_end_a
+	# x2, y2 = line_end_b
+	# k = ((y2-y1) * (x3-x1) - (x2-x1) * (y3-y1)) / (math.sqrt(abs(y2-y1)) + math.sqrt(abs(x2-x1)))
+	# x4 = x3 - k * (y2-y1)
+	# y4 = y3 + k * (x2-x1)
+
+	# https://stackoverflow.com/questions/10301001/perpendicular-on-a-line-segment-from-a-given-point
+	x1, y1 = line_end_a
+	x2, y2 = line_end_b
+	x3, y3 = vehicle_coord
+	px = x2-x1 
+	py = y2-y1
+	dAB = px*px + py*py
+	u = ((x3 - x1) * px + (y3 - y1) * py) / dAB
+	x4 = x1 + u * px
+	y4 = y1 + u * py
+
+	if (((x4 < x2) and (x4 > x1)) or ((x4 > x2) and (x4 < x1))) and \
+		(((y4 < y2) and (y4 > y1)) or ((y4 > y2) and (y4 < y1))):
+		return True
+	else:
+		return False
+
+def find_route(vehicle_track, routes_coords):
+	ROUTE_WIDTH = 30
 	x_ofs = 10
 	y_ofs = 0
 	_, start_x, start_y, _ = vehicle_track[0]
@@ -166,32 +248,28 @@ def find_route(vehicle_track):
 	dist_stop_min =  sys.float_info.max
 	start_idx = 0
 	stop_idx = 0
+	start_is_on_route = False
+	stop_is_on_route = False
 	for k, route_coord in enumerate(routes_coords):
 		P1 = np.array(route_coord[0])
 		P2 = np.array(route_coord[1])
 
-		#P1 = p1 if p1[0] < p2[0] else p2
-		#P2 = p1 if p1[0] > p2[0] else p2
-
-		P3 = np.array([start_x, start_y])
-		dist_start = norm(np.cross(P2-P1, P1-P3))/norm(P2-P1)
-		if dist_start < dist_start_min:
-			if P3[0] > (min(P1[0], P2[0])-x_ofs) and P3[0] < (max(P1[0], P2[0])+x_ofs):
-				#and P3[1] > min(P1[1], P2[1])-y_ofs and P3[1] < max(P1[1], P2[1])+y_ofs:
-				if distance(P3, P1) < distance(P1, P2):
-					dist_start_min = dist_start
-					start_idx = k
+		if not start_is_on_route:
+			P3 = np.array([start_x, start_y])
+			start_is_on_route = is_on_route(P3, P1, P2)
+			if start_is_on_route:
+				start_idx = k
 		
-		P3 = np.array([stop_x, stop_y])
-		dist_stop = norm(np.cross(P2-P1, P1-P3))/norm(P2-P1)
-		if dist_stop < dist_stop_min:
-			if P3[0] > min(P1[0], P2[0])-x_ofs and P3[0] < max(P1[0], P2[0])+x_ofs:
-				#and P3[1] > min(P1[1], P2[1])-y_ofs and P3[1] < max(P1[1], P2[1])+y_ofs:
-				if distance(P3, P1) < distance(P1, P2):
-					dist_stop_min = dist_stop
-					stop_idx = k
+		if not stop_is_on_route:
+			P3 = np.array([stop_x, stop_y])
+			stop_is_on_route = is_on_route(P3, P1, P2)
+			if stop_is_on_route:
+				stop_idx = k
 
-	return start_idx, stop_idx
+	if start_is_on_route and stop_is_on_route:
+		return start_idx, stop_idx
+	else:
+		return -1, -1
 
 def link_nodes(start_node, stop_nodes, routes_dict, node_lists, parent_node):
 	next_nodes = routes_dict[start_node]
@@ -234,7 +312,7 @@ def gen_routes_dict():
 
 	return routes_dict
 
-def find_route_name(start_idx, stop_idx, vehicle_track):
+def find_route_name(start_idx, stop_idx, vehicle_track, routes_coords):
 	routes_dict = gen_routes_dict()
 	if start_idx != stop_idx:
 		start_route_nodes = routes_nodirection[start_idx].split('#')
@@ -267,7 +345,7 @@ def find_route_name(start_idx, stop_idx, vehicle_track):
 			route_name = 'edgeL-' + name_route_nodes[1] + '-' + name_route_nodes[0]
 		return [route_name]
 
-def get_rel_pos(route, start_pos):
+def get_rel_pos(route, start_pos, routes_coords):
 	depart_nodes = route.split('-')
 	route_nodir = depart_nodes[1] + '#' + depart_nodes[2]
 	if route_nodir in routes_nodirection:
@@ -282,11 +360,11 @@ def get_rel_pos(route, start_pos):
 	depart_pos = distance(start_node_coord, start_pos)
 	return depart_pos
 
-def get_pos(routes, track):
+def get_pos(routes, track, routes_coords):
 	depart_route = routes[0]
 	arrival_route = routes[-1]
-	depart_position = get_rel_pos(depart_route, track[0])
-	arrival_position = get_rel_pos(arrival_route, track[-1])
+	depart_position = get_rel_pos(depart_route, track[0], routes_coords)
+	arrival_position = get_rel_pos(arrival_route, track[-1], routes_coords)
 
 	return depart_position, arrival_position
 
@@ -318,6 +396,7 @@ def gen_routes(di_track_file):
 			vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
 
 	route_lists = []
+	invalid_tracks_ctr = 0
 	for vehicle_id in vehicle_tracks:
 		for k, vehicle_track in enumerate(vehicle_tracks[vehicle_id]):
 			cur_vehicle_id = vehicle_id + '_' + str(k)
@@ -332,18 +411,26 @@ def gen_routes(di_track_file):
 
 			vehicle_pos = []
 			vehicle_pos.append([start_pos_x, start_pos_y])
-			vehicle_pos.append([stop_pos_x, stop_pos_y])			
+			vehicle_pos.append([stop_pos_x, stop_pos_y])	
 
-			start_idx, stop_idx = find_route(vehicle_track)
+			fined_route_coords = gen_route_coords('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di.net.xml')		
+
+			start_idx, stop_idx = find_route(vehicle_track, fined_route_coords)
 			print(str(start_idx) + ',' + str(stop_idx))
-			routes_list = find_route_name(start_idx, stop_idx, vehicle_pos)
+			if start_idx == -1 and stop_idx == -1:
+				invalid_tracks_ctr += 1
+				continue
+
+			routes_list = find_route_name(start_idx, stop_idx, vehicle_pos, fined_route_coords)
 			#for route in routes_list:
 			#	print(route)
 			routes_str = ' '.join(routes_list)
 
-			depart_pos, arrival_pos = get_pos(routes_list, vehicle_pos)
+			depart_pos, arrival_pos = get_pos(routes_list, vehicle_pos, fined_route_coords)
 
 			route_lists.append([cur_vehicle_id, timestamp_start, depart_pos, depart_spd, arrival_pos, arrival_spd, routes_str])
+
+	print('invalid routes:' + str(invalid_tracks_ctr))
 
 	f_auto_gen_routes_xml.write('<routes>\n')
 	f_auto_gen_routes_xml.write('   <vType id="type1" accel="0.8" decel="4.5" sigma="0.5" length="5" maxSpeed="70"/>\n')
@@ -373,4 +460,4 @@ if __name__ == '__main__':
     #track_stats(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
     #draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
 
-    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track_test.txt')
+    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
