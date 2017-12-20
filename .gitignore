@@ -104,3 +104,5 @@ tools/build/lib.linux-x86_64-2.7/
 tools/game/racing/log
 tools/game/racing/tripinfos.xml
 tools/dist/
+
+*auto.rou.xml

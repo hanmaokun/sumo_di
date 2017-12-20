@@ -133,14 +133,15 @@ def calc_distance():
 	print(math.sqrt((node_coords[0] - vehicle_coords_depart[0])**2 + (node_coords[1] - vehicle_coords_depart[1])**2))
 	#print(math.sqrt((node_coords[0] - vehicle_coords_arrive[0])**2 + (node_coords[1] - vehicle_coords_arrive[1])**2))
 
-routes_nodirection = ['1#2', '2#3', '3#4', '4#5', '5#6', '6#7', \
+routes_nodirection = ['1#2', '2#3', '3#4', \
+					  	'4#5', '5#6', '6#7', \
 						'1_0#1', '1_1#1', '1_2#1', \
 						'2_0#2', \
 						'3_0#3', '3_1#3', \
 						'4_0#4', '4_1#4', \
 						'5_0#5', '5_1#5', \
 						'6_0#6', '6_1#6', \
-						'7_0#7', '7_1#7', '7_3#7' \
+						'7_0#7', '7_1#7', '7_2#7' \
 					]
 routes_coords = [[[521677, 58109], [521580,57466]], [[521580, 57466], [521520,57059]], [[521520, 57059], [521452,56668]], \
 				 [[521452, 56668], [521433,55855]], [[521433, 55855], [521411,54822]], [[521411, 54822], [521400,53998]], \
@@ -150,7 +151,7 @@ routes_coords = [[[521677, 58109], [521580,57466]], [[521580, 57466], [521520,57
 				 [[520955, 56693], [521452,56668]], [[521920, 56605], [521452,56668]], \
 				 [[521378, 55918], [521433,55855]], [[521660, 55437], [521433,55855]], \
 				 [[520987, 54810], [521411,54822]], [[521780, 55117], [521411,54822]], \
-				 [[521000, 53960], [521400,53998], [521417, 53371], [521400,53998], [521856, 54023], [521400,53998]] \
+				 [[521000, 53960], [521400,53998]], [[521417, 53371], [521400,53998]], [[521856, 54023], [521400,53998]] \
 				]
 
 def distance(p0, p1):
@@ -290,6 +291,7 @@ def get_pos(routes, track):
 	return depart_position, arrival_position
 
 def gen_routes(di_track_file):
+	TIMESTAMP_INTERVAL_MAX = 10
 	f_auto_gen_routes_xml = open('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto.rou.xml', 'w')
 	f_track = open(di_track_file, 'r')
 	line_coords = []
@@ -305,7 +307,7 @@ def gen_routes(di_track_file):
 		category = line[5]
 		if vehicle_id in vehicle_tracks.keys():
 			last_timestamp, _, _, _ = vehicle_tracks[vehicle_id][-1][-1]
-			if float(timestamp) - float(last_timestamp) > 4:
+			if float(timestamp) - float(last_timestamp) > TIMESTAMP_INTERVAL_MAX:
 				vehicle_tracks[vehicle_id].append([])
 				vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
 			else:
@@ -371,4 +373,4 @@ if __name__ == '__main__':
     #track_stats(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
     #draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
 
-    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
+    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track_test.txt')
