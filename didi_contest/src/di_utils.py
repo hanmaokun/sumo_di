@@ -158,6 +158,20 @@ routes_coords = [[[521677, 58109], [521580,57466]], [[521580, 57466], [521520,57
 def distance(p0, p1):
     return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
 
+def p_distance(p1, p2, p3):
+	x1, y1 = p1
+	x2, y2 = p2
+	x3, y3 = p3
+	px = x2-x1 
+	py = y2-y1
+	dAB = px*px + py*py
+	u = ((x3 - x1) * px + (y3 - y1) * py) / dAB
+	x4 = x1 + u * px
+	y4 = y1 + u * py
+
+	p4 = (x4, y4)
+	return distance(p1, p4)
+
 def list_mean(lst):
 	return reduce(lambda x, y: x + y, lst) / len(lst)
 
@@ -377,13 +391,15 @@ def get_rel_pos(route, start_pos, routes_coords):
 	if route_nodir in routes_nodirection:
 		idx = routes_nodirection.index(route_nodir)
 		nodes = routes_coords[idx]
-		start_node_coord = nodes[0]
+		node_start_coord = nodes[0]
+		node_end_coord = nodes[1]
 	else:
 		route_nodir = depart_nodes[2] + '#' + depart_nodes[1]
 		idx = routes_nodirection.index(route_nodir)
 		nodes = routes_coords[idx]
-		start_node_coord = nodes[1]
-	depart_pos = distance(start_node_coord, start_pos)
+		node_start_coord = nodes[1]
+		node_end_coord = nodes[0]
+	depart_pos = p_distance(node_start_coord, node_end_coord, start_pos)
 	return depart_pos
 
 def get_pos(routes, track, routes_coords):
@@ -427,7 +443,7 @@ def gen_routes(di_track_file):
 		for k, vehicle_track in enumerate(vehicle_tracks[vehicle_id]):
 			cur_vehicle_id = vehicle_id + '_' + str(k)
 
-			fined_route_coords = gen_route_coords('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di.net.xml')		
+			fined_route_coords = gen_route_coords('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di.han.net.xml')		
 
 			start_idx, stop_idx, fine_vehicle_track = find_route(vehicle_track, fined_route_coords)
 			print(str(start_idx) + ',' + str(stop_idx))
