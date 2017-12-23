@@ -1,2 +1,2 @@
 #!/bin/sh
-netconvert --node-files=di.nod.xml --edge-files=di.edg.xml --output-file=di.net.xml
+netconvert --node-files=di.nod.xml --edge-files=di.edg.xml --output-file=di.net.xml --tls.guess-signals

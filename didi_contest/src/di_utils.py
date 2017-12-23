@@ -427,9 +427,6 @@ def gen_routes(di_track_file):
 		for k, vehicle_track in enumerate(vehicle_tracks[vehicle_id]):
 			cur_vehicle_id = vehicle_id + '_' + str(k)
 
-			if cur_vehicle_id == "0e83daf2710839ed7c68d5626558e695_5":
-				print(cur_vehicle_id)
-
 			fined_route_coords = gen_route_coords('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di.net.xml')		
 
 			start_idx, stop_idx, fine_vehicle_track = find_route(vehicle_track, fined_route_coords)
