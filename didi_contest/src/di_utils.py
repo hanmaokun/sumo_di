@@ -480,9 +480,9 @@ def gen_routes(di_track_file):
 	for route_info in sorted_route_lists:
 		cur_vehicle_id, timestamp_start, depart_pos, depart_spd, arrival_pos, arrival_spd, routes_str = route_info
 
-		vehicle_content_str = '   <vehicle id="%s" type="type1" depart="%s" color="1,1,0" departPos="%s" \
-			departSpeed="%s"  arrivalPos="%s" arrivalSpeed="%s">\n' % (\
-			cur_vehicle_id, str(timestamp_start), str(depart_pos), str(depart_spd), str(arrival_pos), str(arrival_spd))
+		vehicle_content_str = '   <vehicle id="%s" type="type1" depart="%s" color="1,1,0" departPos="%s" departSpeed="%s" \
+			arrivalPos="%s">\n' % (\
+			cur_vehicle_id, str(timestamp_start), str(depart_pos), str(depart_spd), str(arrival_pos))
 
 		route_content_str = '      <route edges="%s"/>\n' % (routes_str)
 
@@ -493,6 +493,67 @@ def gen_routes(di_track_file):
 	f_auto_gen_routes_xml.write('</routes>\n')
 	f_auto_gen_routes_xml.close()
 
+def split_routes(routes_file):
+	net_tree = ET.ElementTree(file=routes_file)
+	net_tree_root = net_tree.getroot()
+	vehicles = net_tree_root.findall('vehicle')
+	departs = []
+	y = []
+	for vehicle in vehicles:
+		depart_time = float(vehicle.attrib['depart'])
+		departs.append(depart_time)
+		y.append(1)
+	plt.xlim(0, 1130281)
+	plt.ylim(0, 2)
+	plt.scatter(departs, y)
+	plt.show()
+
+def finetune_routes():
+	for x in range(0, 10):
+		route_file = "di-auto.rou." + str(x) + ".xml"
+		net_tree = ET.ElementTree(file=route_file)
+		net_tree_root = net_tree.getroot()
+		vehicles = net_tree_root.findall('vehicle')
+		base_depart = True
+		base_depart_time = 0.0
+		for vehicle in vehicles:
+			depart_time = float(vehicle.attrib['depart'])
+			if base_depart:
+				base_depart = False
+				base_depart_time = depart_time
+				vehicle.attrib['depart'] = "0.0"
+			else:
+				depart_time -= base_depart_time
+				vehicle.attrib['depart'] = str(depart_time)
+
+		net_tree.write(route_file)
+
+def finetune_results():
+	output_str = ""
+	ori_output = "152 141 8 10 37 38 8 118 11 35 393 13 184 38 189 12 180 12 8 45 142 29 78 35 32 10 54 55 39 37 10 88 60"
+	oris = ori_output.split(' ')
+	num_tl = 7
+	ori_ctr = 0
+	tl_phases = [4, 4, 3, 5, 3, 4, 3]
+	for tl_idx in range(num_tl):
+		ofs = oris[ori_ctr]
+		num_phase = tl_phases[tl_idx]
+
+		cycle = 0
+		for x in range(num_phase):
+			cycle += int(oris[ori_ctr+x+1])
+		tune_ofs = int(ofs)%cycle
+		#print(tune_ofs)
+		output_str += str(tune_ofs)
+		ori_ctr += 1
+		for phase in range(num_phase):
+			phase_dur = oris[ori_ctr]
+			output_str += ',' + phase_dur
+			ori_ctr += 1
+		output_str += ';'
+
+	print(output_str[:-1])
+
 if __name__ == '__main__':
     random.seed(200)
 
@@ -500,4 +561,7 @@ if __name__ == '__main__':
     #track_stats(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
     #draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
 
-    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
+    #gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
+    #split_routes(routes_file='/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto.rou.xml')
+    #finetune_routes()
+    finetune_results()
