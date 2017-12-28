@@ -14,6 +14,9 @@ import xml.etree.cElementTree as ET
 X_OFS = 1000
 Y_OFS = 1000
 
+MAX_NORMAL_TIMELAP = 10
+MAX_ABNORMAL_IN_CONTINUOUSE_ROUTE_ALLOWANCE = 3
+
 TIMESTAMP_BASE = 1493852410.0
 TIMESTAMP_MAX  = 1494982799.0
 
@@ -74,12 +77,38 @@ def onclick(event):
 
     return coords
 
-def draw_veihcle_track(di_track_file, plot_all=True):
+def distance(p0, p1):
+    return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
+
+def is_continuous_track(last_t, last_x, last_y, last_spd, t, x, y, spd):
+	timelap = t - last_t
+
+	if timelap < 0:
+		return False
+
+	if timelap > MAX_NORMAL_TIMELAP:
+		return False
+
+	last_pos = [last_x, last_y]
+	cur_pos = [x, y]
+	delta_dist = distance(last_pos, cur_pos)
+
+	max_spd = spd if spd > last_spd else last_spd
+	exp_dist = max_spd * timelap
+
+	if delta_dist > exp_dist + 10:
+		print("real dist: " + str(delta_dist) + ", expect dist: " + str(exp_dist))
+		return False
+
+	return True
+
+def draw_veihcle_track(di_track_file, plot_all=False):
 	f_track = open(di_track_file, 'r')
 	line_coords = []
 	vehicle_tracks = {}
 	lines = f_track.readlines()
-	for line in lines[1:]:
+	abnormal_ctr = 0
+	for line in lines[1:5000]:
 		line = line.split(',')
 		vehicle_id = line[0]
 		timestamp = line[1]
@@ -88,43 +117,50 @@ def draw_veihcle_track(di_track_file, plot_all=True):
 		speed = line[4]
 		category = line[5]
 		if vehicle_id in vehicle_tracks.keys():
-			last_timestamp, _, _ = vehicle_tracks[vehicle_id][-1][-1]
-			if float(timestamp) - float(last_timestamp) > 4:
-				vehicle_tracks[vehicle_id].append([])
-				vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate)])
+			last_timestamp, last_x, last_y, last_speed = vehicle_tracks[vehicle_id][-1][-1]
+			if is_continuous_track(last_timestamp, last_x, last_y, last_speed, float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)):
+				vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
 			else:
-				vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate)])
+				abnormal_ctr += 1
+				if abnormal_ctr == 3:
+					abnormal_ctr = 0
+					vehicle_tracks[vehicle_id].append([])
+					vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
+				else:
+					vehicle_tracks[vehicle_id][-1].append([last_timestamp, last_x, last_y, last_speed])
 		else:
+			abnormal_ctr = 0
 			vehicle_tracks[vehicle_id] = []
 			vehicle_tracks[vehicle_id].append([])
-			vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate)])
+			vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
 
 	if plot_all:
-		all_coords = np.array([[1493859164, 521696.473915, 55061.506951]])
+		all_coords = np.array([[1493859164, 521696.473915, 55061.506951, 6.6]])
 		for vehicle_id in vehicle_tracks:
 			for vehicle_track in vehicle_tracks[vehicle_id]:
 				per_vehicle_track = np.array(vehicle_track)
 				all_coords = np.concatenate((all_coords, per_vehicle_track), axis=0)
-		timestamp, x, y = all_coords.T
-		plt.xlim(521018.721067-X_OFS, 521726.523312+X_OFS)
-		plt.ylim(53888.244714-Y_OFS, 58147.347356+Y_OFS)
+		timestamp, x, y, spd = all_coords.T
+		plt.xlim(520955.288814-X_OFS, 521920.177507+X_OFS)
+		plt.ylim(53380.188236-Y_OFS, 58715.227708+Y_OFS)
 		fig = plt.figure()
 		ax = fig.add_subplot(111)
-		ax.scatter(x, y)
+		#ax.scatter(x, y)
+		ax.plot(x, y)
 		cid = fig.canvas.mpl_connect('button_press_event', onclick)
 		#plt.scatter(x, y)
 		plt.show()
 
 	else:
+		plt.xlim(520955.288814, 521920.177507)
+		plt.ylim(53380.188236, 58715.227708)
 		for vehicle_id in vehicle_tracks:
 			print(vehicle_id)
 			for vehicle_track in vehicle_tracks[vehicle_id]:
 				per_vehicle_track = np.array(vehicle_track)
-				timestamp, x, y = per_vehicle_track.T
-				plt.xlim(521018.721067, 521726.523312)
-				plt.ylim(53888.244714, 58147.347356)
-				plt.scatter(x, y)
-				plt.show()
+				timestamp, x, y, spd = per_vehicle_track.T
+				plt.plot(x, y)
+		plt.show()
 
 def calc_distance():
 	node_coords = [521411, 54822]
@@ -154,9 +190,6 @@ routes_coords = [[[521677, 58109], [521580,57466]], [[521580, 57466], [521520,57
 				 [[520987, 54810], [521411,54822]], [[521780, 55117], [521411,54822]], \
 				 [[521000, 53960], [521400,53998]], [[521417, 53371], [521400,53998]], [[521856, 54023], [521400,53998]] \
 				]
-
-def distance(p0, p1):
-    return math.sqrt((p0[0] - p1[0])**2 + (p0[1] - p1[1])**2)
 
 def p_distance(p1, p2, p3):
 	x1, y1 = p1
@@ -412,11 +445,12 @@ def get_pos(routes, track, routes_coords):
 
 def gen_routes(di_track_file):
 	TIMESTAMP_INTERVAL_MAX = 10
-	f_auto_gen_routes_xml = open('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto.rou.xml', 'w')
+	f_auto_gen_routes_xml = open('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto-28.rou.xml', 'w')
 	f_track = open(di_track_file, 'r')
 	line_coords = []
 	vehicle_tracks = {}
 	lines = f_track.readlines()
+	abnormal_ctr = 0
 	for line in lines[1:]:
 		line = line.split(',')
 		vehicle_id = line[0]
@@ -426,13 +460,19 @@ def gen_routes(di_track_file):
 		speed = line[4]
 		category = line[5]
 		if vehicle_id in vehicle_tracks.keys():
-			last_timestamp, _, _, _ = vehicle_tracks[vehicle_id][-1][-1]
-			if float(timestamp) - float(last_timestamp) > TIMESTAMP_INTERVAL_MAX:
-				vehicle_tracks[vehicle_id].append([])
+			last_timestamp, last_x, last_y, last_speed = vehicle_tracks[vehicle_id][-1][-1]
+			if is_continuous_track(last_timestamp, last_x, last_y, last_speed, float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)):
 				vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
 			else:
-				vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
+				abnormal_ctr += 1
+				if abnormal_ctr == MAX_ABNORMAL_IN_CONTINUOUSE_ROUTE_ALLOWANCE:
+					abnormal_ctr = 0
+					vehicle_tracks[vehicle_id].append([])
+					vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
+				else:
+					vehicle_tracks[vehicle_id][-1].append([last_timestamp, last_x, last_y, last_speed])
 		else:
+			abnormal_ctr = 0
 			vehicle_tracks[vehicle_id] = []
 			vehicle_tracks[vehicle_id].append([])
 			vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
@@ -441,6 +481,9 @@ def gen_routes(di_track_file):
 	invalid_tracks_ctr = 0
 	for vehicle_id in vehicle_tracks:
 		for k, vehicle_track in enumerate(vehicle_tracks[vehicle_id]):
+			if len(vehicle_track) < 10:
+				continue
+				
 			cur_vehicle_id = vehicle_id + '_' + str(k)
 
 			fined_route_coords = gen_route_coords('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di.han.net.xml')		
@@ -559,9 +602,8 @@ if __name__ == '__main__':
 
     #calc_distance()
     #track_stats(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
-    #draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
-
-    #gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
+    #draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track_test.txt')
+    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
     #split_routes(routes_file='/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto.rou.xml')
     #finetune_routes()
-    finetune_results()
+    #finetune_results()
