@@ -483,7 +483,7 @@ def gen_routes(di_track_file):
 		for k, vehicle_track in enumerate(vehicle_tracks[vehicle_id]):
 			if len(vehicle_track) < 10:
 				continue
-				
+
 			cur_vehicle_id = vehicle_id + '_' + str(k)
 
 			fined_route_coords = gen_route_coords('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di.han.net.xml')		
@@ -573,7 +573,7 @@ def finetune_routes():
 
 def finetune_results():
 	output_str = ""
-	ori_output = "152 141 8 10 37 38 8 118 11 35 393 13 184 38 189 12 180 12 8 45 142 29 78 35 32 10 54 55 39 37 10 88 60"
+	ori_output = "61 82 5 7 32 165 8 141 10 35 44 7 199 32 33 7 77 7 5 32 29 7 48 32 71 7 63 47 32 41 7 88 36"
 	oris = ori_output.split(' ')
 	num_tl = 7
 	ori_ctr = 0
@@ -584,9 +584,11 @@ def finetune_results():
 
 		cycle = 0
 		for x in range(num_phase):
+			if not (tl_idx == 1 and x == 0):
+				oris[ori_ctr+x+1] = str(int(oris[ori_ctr+x+1]) + 3)
 			cycle += int(oris[ori_ctr+x+1])
 		tune_ofs = int(ofs)%cycle
-		#print(tune_ofs)
+		
 		output_str += str(tune_ofs)
 		ori_ctr += 1
 		for phase in range(num_phase):
@@ -603,7 +605,7 @@ if __name__ == '__main__':
     #calc_distance()
     #track_stats(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
     #draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track_test.txt')
-    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
+    #gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
     #split_routes(routes_file='/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto.rou.xml')
     #finetune_routes()
-    #finetune_results()
+    finetune_results()
