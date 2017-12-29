@@ -1,11 +1,11 @@
 <nodes> 
-<node id="node1" x="521677" y="58109" type="traffic_light"/> 
-<node id="node2" x="521580" y="57466" type="traffic_light"/> 
-<node id="node3" x="521520" y="57059" type="traffic_light"/> 
-<node id="node4" x="521452" y="56668" type="traffic_light"/> 
-<node id="node5" x="521433" y="55855" type="traffic_light"/> 
-<node id="node6" x="521411" y="54822" type="traffic_light"/> 
-<node id="node7" x="521400" y="53998" type="traffic_light"/> 
+<node id="node1" x="521676" y="58126" type="traffic_light"/> 
+<node id="node2" x="521581" y="57500" type="traffic_light"/> 
+<node id="node3" x="521516" y="57070" type="traffic_light"/> 
+<node id="node4" x="521454" y="56672" type="traffic_light"/> 
+<node id="node5" x="521427" y="55870" type="traffic_light"/> 
+<node id="node6" x="521418" y="54881" type="traffic_light"/> 
+<node id="node7" x="521406" y="53986" type="traffic_light"/> 
 <node id="node1_2" x="521769" y="58107" type="priority"/>
 <node id="node1_1" x="521729" y="58722" type="priority"/>
 <node id="node1_0" x="521296" y="58295" type="priority"/>

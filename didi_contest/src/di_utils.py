@@ -447,9 +447,23 @@ def get_pos(routes, track, routes_coords):
 
 	return depart_position, arrival_position
 
+'''
+<node id="node1_1" x="521729" y="58722" type="priority"/>
+
+<node id="node1" x="521676" y="58126" type="traffic_light"/> 
+<node id="node2" x="521581" y="57500" type="traffic_light"/> 
+<node id="node3" x="521516" y="57070" type="traffic_light"/> 
+<node id="node4" x="521454" y="56672" type="traffic_light"/> 
+<node id="node5" x="521427" y="55870" type="traffic_light"/> 
+<node id="node6" x="521418" y="54881" type="traffic_light"/> 
+<node id="node7" x="521406" y="53986" type="traffic_light"/> 
+
+<node id="node7_1" x="521417" y="53371" type="priority"/>
+'''
+
 def plot_didi_map():
-	nodes = [[521769, 58722], [521677, 58109], [521580, 57466], [521520, 57059], \
-			[521452, 56668], [521433, 55855], [521411, 54822], [521400, 53998], [521417, 53371]]
+	nodes = [[521729, 58722], [521676, 58126], [521581, 57500], [521516, 57070], [521454, 56672], \
+			[521427, 55870], [521418, 54881], [521406, 53986], [521417, 53371]]
 	#plt.xlim(521400 - 200, 521769 + 200)
 	#plt.ylim(53371 - 200, 58722 + 200)
 	route_nodes = np.array(nodes)
@@ -464,7 +478,7 @@ def gen_routes(di_track_file, debug):
 	vehicle_tracks = {}
 	lines = f_track.readlines()
 	abnormal_ctr = 0
-	for line in lines[0:5000]:
+	for line in lines:
 		line = line.split(',')
 		vehicle_id = line[0]
 		timestamp = line[1]
@@ -499,7 +513,7 @@ def gen_routes(di_track_file, debug):
 
 			cur_vehicle_id = vehicle_id + '_' + str(k)
 
-			fined_route_coords = gen_route_coords('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di.han.net.xml')		
+			fined_route_coords = gen_route_coords('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di.kun.net.xml')		
 
 			start_idx, stop_idx, fine_vehicle_track = find_route(vehicle_track, fined_route_coords)
 			print(str(start_idx) + ',' + str(stop_idx))
@@ -532,7 +546,7 @@ def gen_routes(di_track_file, debug):
 				plt.xlim(521400 - 200, 521769 + 200)
 				plt.ylim(53371 - 200, 58722 + 200)
 				plot_didi_map()
-				per_vehicle_track = np.array(vehicle_track)
+				per_vehicle_track = np.array(fine_vehicle_track)
 				timestamp, x, y, spd = per_vehicle_track.T
 				plt.scatter(x[0], y[0], color='r')
 				plt.plot(x, y, color = 'r')
@@ -599,7 +613,7 @@ def finetune_routes():
 
 def finetune_results():
 	output_str = ""
-	ori_output = "61 82 5 7 32 165 8 141 10 35 44 7 199 32 33 7 77 7 5 32 29 7 48 32 71 7 63 47 32 41 7 88 36"
+	ori_output = "119 123 5 7 36 5 8 256 5 32 117 7 186 32 89 7 122 13 5 32 78 7 89 56 54 7 33 7 32 116 7 97 32"
 	oris = ori_output.split(' ')
 	num_tl = 7
 	ori_ctr = 0
@@ -647,7 +661,7 @@ if __name__ == '__main__':
     #calc_distance()
     #track_stats(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
     #draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
-    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt', debug=True)
+    #gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt', debug=False)
     #split_routes(routes_file='/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto.rou.xml')
-    #finetune_routes()
+    finetune_routes()
     #finetune_results()
