@@ -215,7 +215,11 @@ def p_distance(p1, p2, p3):
 	y4 = y1 + u * py
 
 	p4 = (x4, y4)
-	return distance(p1, p4)
+	result = distance(p1, p4) - 5
+	if result > distance(p1, p2):
+		result = distance(p1, p2) - 5
+
+	return result
 
 def list_mean(lst):
 	return reduce(lambda x, y: x + y, lst) / len(lst)
@@ -752,9 +756,9 @@ if __name__ == '__main__':
     #calc_distance()
     #track_stats(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
     #draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
-    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track_sorted.txt', debug=False)
+    #gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track_sorted.txt', debug=False)
     #split_routes(routes_file='/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto.rou.xml')
-    #finetune_routes()
+    finetune_routes()
     #check_routes()
 
     #finetune_results()
