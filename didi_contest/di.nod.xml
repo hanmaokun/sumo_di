@@ -9,7 +9,7 @@
 <node id="node1_2" x="521838" y="58093" type="priority"/>
 <node id="node1_1" x="521729" y="58722" type="priority"/>
 <node id="node1_0" x="521296" y="58295" type="priority"/>
-<node id="node2_0" x="521530" y="57535" type="priority"/>
+<node id="node2_0" x="521480" y="57573" type="priority"/>
 <node id="node2_1" x="521635" y="57385" type="priority"/>
 <node id="node3_0" x="521387" y="57093" type="priority"/>
 <node id="node3_1" x="521732" y="57032" type="priority"/>

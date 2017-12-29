@@ -132,7 +132,7 @@ def draw_veihcle_track(di_track_file, plot_all=False):
 				vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
 			else:
 				abnormal_ctr += 1
-				if abnormal_ctr == 2:
+				if abnormal_ctr == MAX_ABNORMAL_IN_CONTINUOUSE_ROUTE_ALLOWANCE:
 					abnormal_ctr = 0
 					vehicle_tracks[vehicle_id].append([])
 					vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
@@ -267,9 +267,9 @@ def gen_route_coords(net_xml_file):
 	return routes_coords_
 
 def is_on_route(vehicle_coord, line_end_a, line_end_b, route_width):
-	distance = norm(np.cross(line_end_b-line_end_a, line_end_a-vehicle_coord))/norm(line_end_b-line_end_a)
-	if distance > route_width:
-		return False
+	dist = norm(np.cross(line_end_b-line_end_a, line_end_a-vehicle_coord))/norm(line_end_b-line_end_a)
+	if dist > route_width*3:
+		return False, sys.float_info.max
 
 	# 'https://stackoverflow.com/questions/1811549/perpendicular-on-a-line-from-a-given-point'
 	#  :calc the perpendicular cross point to a line from given point.
@@ -293,9 +293,14 @@ def is_on_route(vehicle_coord, line_end_a, line_end_b, route_width):
 
 	if (((x4 <= x2) and (x4 >= x1)) or ((x4 >= x2) and (x4 <= x1))) and \
 		(((y4 <= y2) and (y4 >= y1)) or ((y4 >= y2) and (y4 <= y1))):
-		return True
+		return True, 0
 	else:
-		return False
+		p1 = [x1, y1]
+		p2 = [x2, y2]
+		p4 = [x4, y4]
+		dist_a = distance(p1, p4)
+		dist_b = distance(p2, p4)
+		return False, min(dist_a, dist_b)
 
 def find_route(vehicle_track, routes_coords):
 	ROUTE_WIDTH = 20
@@ -303,58 +308,55 @@ def find_route(vehicle_track, routes_coords):
 	start_idx = 0
 	start_is_on_route = False
 
-	while not start_is_on_route:
-		for k, route_coord in enumerate(routes_coords):
-			P1 = np.array(route_coord[0])
-			P2 = np.array(route_coord[1])
+	idx2dist = {}
 
-			if not start_is_on_route:
-				P3 = np.array([start_x, start_y])
-				start_is_on_route = is_on_route(P3, P1, P2, ROUTE_WIDTH)
-				if start_is_on_route:
-					start_idx = k
-					break
-		if start_is_on_route:
-			break
+	for k, route_coord in enumerate(routes_coords):
+		P1 = np.array(route_coord[0])
+		P2 = np.array(route_coord[1])
 
-		vehicle_track.pop(0)
-		if len(vehicle_track) == 0:
-			break
+		if not start_is_on_route:
+			P3 = np.array([start_x, start_y])
+			start_is_on_route, dist = is_on_route(P3, P1, P2, ROUTE_WIDTH)
+			idx2dist[k] = dist
+			if start_is_on_route:
+				start_idx = k
+				break
 
-		_, start_x, start_y, _ = vehicle_track[0]
-
-
-	if len(vehicle_track) < 2:
-		return -1, -1, vehicle_track
+	if not start_is_on_route:
+		min_dist = sys.float_info.max
+		for k_ in idx2dist.keys():
+			per_dist = idx2dist[k_]
+			if per_dist < min_dist:
+				min_dist = per_dist
+				start_idx = k_
 
 	_, stop_x, stop_y, _  = vehicle_track[-1]
 	stop_idx = 0
 	stop_is_on_route = False
 
-	while not stop_is_on_route:
-		for k, route_coord in enumerate(routes_coords):
-			P1 = np.array(route_coord[0])
-			P2 = np.array(route_coord[1])
-			
-			if not stop_is_on_route:
-				P3 = np.array([stop_x, stop_y])
-				stop_is_on_route = is_on_route(P3, P1, P2, ROUTE_WIDTH)
-				if stop_is_on_route:
-					stop_idx = k
-					break
-		if stop_is_on_route:
-			break
+	idx2dist = {}
 
-		vehicle_track.pop(-1)
-		if len(vehicle_track) < 2:
-			break
+	for k, route_coord in enumerate(routes_coords):
+		P1 = np.array(route_coord[0])
+		P2 = np.array(route_coord[1])
+		
+		if not stop_is_on_route:
+			P3 = np.array([stop_x, stop_y])
+			stop_is_on_route, dist = is_on_route(P3, P1, P2, ROUTE_WIDTH)
+			idx2dist[k] = dist
+			if stop_is_on_route:
+				stop_idx = k
+				break
 
-		_, stop_x, stop_y, _ = vehicle_track[-1]
+	if not stop_is_on_route:
+		min_dist = sys.float_info.max
+		for k_ in idx2dist.keys():
+			per_dist = idx2dist[k_]
+			if per_dist < min_dist:
+				min_dist = per_dist
+				stop_idx = k_
 
-	if start_is_on_route and stop_is_on_route:
-		return start_idx, stop_idx, vehicle_track
-	else:
-		return -1, -1, vehicle_track
+	return start_idx, stop_idx, vehicle_track
 
 def link_nodes(start_node, stop_nodes, routes_dict, node_lists, parent_node):
 	next_nodes = routes_dict[start_node]
@@ -485,6 +487,24 @@ def plot_didi_map():
 	x, y = route_nodes.T
 	plt.scatter(x, y)
 
+def pick_from_abnormal(tracks, abnormal_points):
+	valid_pnts = []
+	anchor = abnormal_points[-1]
+	valid_pnts.append(anchor)
+	k = len(abnormal_points)
+	for i in range(k-1):
+		j = k-2-i
+		cur_pnt = abnormal_points[j]
+		last_pnt = valid_pnts[-1]
+		last_timestamp, last_x, last_y, last_speed = cur_pnt
+		timestamp, x, y, speed = last_pnt
+		if is_continuous_track(last_timestamp, last_x, last_y, last_speed, float(timestamp), float(x), float(y), float(speed)):
+			valid_pnts.append(cur_pnt)
+
+	valid_pnts.reverse()
+	for valid_pnt in valid_pnts:
+		tracks[-1].append(valid_pnt)
+
 def gen_routes(di_track_file, debug):
 	next_route_dict = {
 		'edgeL-1_0-1': 'edgeL-1-1_2',
@@ -523,7 +543,8 @@ def gen_routes(di_track_file, debug):
 	vehicle_tracks = {}
 	lines = f_track.readlines()
 	abnormal_ctr = 0
-	for line in lines[0:20000]:
+	abnormal_points = []
+	for line in lines:
 		line = line.split(',')
 		vehicle_id = line[0]
 		timestamp = line[1]
@@ -537,10 +558,13 @@ def gen_routes(di_track_file, debug):
 				vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
 			else:
 				abnormal_ctr += 1
+				abnormal_points.append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
 				if abnormal_ctr == MAX_ABNORMAL_IN_CONTINUOUSE_ROUTE_ALLOWANCE:
 					abnormal_ctr = 0
 					vehicle_tracks[vehicle_id].append([])
-					vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
+					pick_from_abnormal(vehicle_tracks[vehicle_id], abnormal_points)
+					#vehicle_tracks[vehicle_id][-1].append([float(timestamp), float(x_coordinate), float(y_coordinate), float(speed)])
+					abnormal_points = []
 				else:
 					vehicle_tracks[vehicle_id][-1].append([last_timestamp, last_x, last_y, last_speed])
 		else:
@@ -680,7 +704,7 @@ def check_routes():
 
 def finetune_results():
 	output_str = ""
-	ori_output = "46 145 5 7 32 149 17 259 5 32 173 7 148 37 -0 7 53 12 5 34 96 68 107 33 97 23 33 13 33 87 9 120 49"
+	ori_output = "145 122 5 8 32 14 8 170 5 36 189 14 240 32 123 13 88 30 5 32 69 7 143 32 51 7 33 7 39 58 7 78 43"
 	oris = ori_output.split(' ')
 	num_tl = 7
 	ori_ctr = 0
@@ -728,8 +752,9 @@ if __name__ == '__main__':
     #calc_distance()
     #track_stats(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
     #draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
-    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track_sorted.txt', debug=True)
+    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track_sorted.txt', debug=False)
     #split_routes(routes_file='/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto.rou.xml')
     #finetune_routes()
     #check_routes()
+
     #finetune_results()
