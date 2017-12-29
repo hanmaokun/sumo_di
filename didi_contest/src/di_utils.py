@@ -29,13 +29,15 @@ def track_stats(di_track_file):
 	max_y = 0
 	min_t = sys.float_info.max
 	max_t = 0
+	min_sod = sys.float_info.max
+	max_spd = 0
 	for line in lines[1:]:
 		line = line.split(',')
 		vehicle_id = line[0]
 		timestamp = line[1]
 		x_coordinate = line[2]
 		y_coordinate = line[3]
-		speed = line[4]
+		speed = float(line[4])
 		category = line[5]
 
 		if float(timestamp) < min_t:
@@ -56,12 +58,19 @@ def track_stats(di_track_file):
 		elif y_coord > max_y:
 			max_y = y_coord
 
+		if speed < min_sod:
+			min_sod = speed
+		elif speed > max_spd:
+			max_spd = speed
+
 	print(min_x)
 	print(max_x)
 	print(min_y)
 	print(max_y)
 	print(max_t)
 	print(min_t)
+	print(max_spd)
+	print(min_sod)
 
 coords = []
 
@@ -556,7 +565,7 @@ def gen_routes(di_track_file, debug):
 
 	if not debug:
 		f_auto_gen_routes_xml.write('<routes>\n')
-		f_auto_gen_routes_xml.write('   <vType id="type1" accel="0.8" decel="4.5" sigma="0.5" length="5" maxSpeed="70"/>\n')
+		f_auto_gen_routes_xml.write('   <vType id="type1" accel="0.8" decel="4.5" sigma="0.5" length="5" maxSpeed="102"/>\n')
 
 		sorted_route_lists = sorted(route_lists,key=lambda x: x[1])
 
@@ -639,17 +648,17 @@ def finetune_results():
 
 	print(output_str[:-1])
 
-def sort_didi_csv(di_track_file='/home/nlp/Downloads/vehicle_track.csv'):
+def sort_didi_csv(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt'):
 	import csv
 	import operator
 
 	with open(di_track_file) as f:
 		reader = csv.reader(f)
-		sorted_by_vehicle_name = sorted(reader, key=lambda row: (row[0]), reverse=False)
+		sorted_by_vehicle_timestamp = sorted(reader, key=lambda col: (col[0], int(col[1])), reverse=False)
 
-	new_csv_file = open('/home/nlp/Downloads/vehicle_track_sorted.csv', 'w')
-	for line in sorted_by_vehicle_name:
-		new_csv_file.write("%s,%s,%s,%s,%s\n" % (line[0], line[1], line[2], line[3], line[4]))
+	new_csv_file = open('/home/nlp/bigsur/data/diditech/vehicle_track_sorted.txt', 'w')
+	for line in sorted_by_vehicle_timestamp:
+		new_csv_file.write("%s,%s,%s,%s,%s, %s\n" % (line[0], line[1], line[2], line[3], line[4], line[5]))
 
 	new_csv_file.close()
 
@@ -661,7 +670,7 @@ if __name__ == '__main__':
     #calc_distance()
     #track_stats(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
     #draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
-    #gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt', debug=False)
+    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track_sorted.txt', debug=False)
     #split_routes(routes_file='/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto.rou.xml')
-    finetune_routes()
+    #finetune_routes()
     #finetune_results()
