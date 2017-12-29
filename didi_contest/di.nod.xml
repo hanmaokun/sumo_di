@@ -6,7 +6,7 @@
 <node id="node5" x="521427" y="55870" type="traffic_light"/> 
 <node id="node6" x="521418" y="54881" type="traffic_light"/> 
 <node id="node7" x="521406" y="53986" type="traffic_light"/> 
-<node id="node1_2" x="521769" y="58107" type="priority"/>
+<node id="node1_2" x="521838" y="58093" type="priority"/>
 <node id="node1_1" x="521729" y="58722" type="priority"/>
 <node id="node1_0" x="521296" y="58295" type="priority"/>
 <node id="node2_0" x="521530" y="57535" type="priority"/>

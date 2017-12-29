@@ -8,7 +8,7 @@ if __name__ == '__main__':
 	for i in range(10):
 		dst_xml=open('di-auto.rou.'+str(i)+'.xml','w')
 		dst_xml.write('<routes>\n')
-		dst_xml.write('   <vType id="type1" accel="0.8" decel="4.5" sigma="0.5" length="5" maxSpeed="70"/>\n')
+		dst_xml.write('   <vType id="type1" accel="0.8" decel="4.5" sigma="0.5" length="5" maxSpeed="102"/>\n')
 		for j in range(0,num_line/3):
 			time_=float(lines[2+j*3].split('"')[5])
 			#print time_split

@@ -10,6 +10,7 @@ import os,sys
 import math
 from numpy.linalg import norm
 import xml.etree.cElementTree as ET
+import copy
 
 X_OFS = 1000
 Y_OFS = 1000
@@ -429,7 +430,7 @@ def find_route_name(start_idx, stop_idx, vehicle_track, routes_coords):
 			route_name = 'edgeL-' + name_route_nodes[1] + '-' + name_route_nodes[0]
 		return [route_name]
 
-def get_rel_pos(route, start_pos, routes_coords):
+def get_rel_pos(route, start_pos, routes_coords, is_depart=True):
 	depart_nodes = route.split('-')
 	route_nodir = depart_nodes[1] + '#' + depart_nodes[2]
 	if route_nodir in routes_nodirection:
@@ -443,16 +444,21 @@ def get_rel_pos(route, start_pos, routes_coords):
 		nodes = routes_coords[idx]
 		node_start_coord = nodes[1]
 		node_end_coord = nodes[0]
-	depart_pos = p_distance(node_start_coord, node_end_coord, start_pos)
-	if depart_pos > 10:
-		depart_pos -= 10
-	return depart_pos
+	rel_pos = p_distance(node_start_coord, node_end_coord, start_pos)
+
+	if is_depart and rel_pos > 10:
+		rel_pos -= 10
+
+	if (not is_depart) and (rel_pos > distance(node_start_coord, node_end_coord)):
+		rel_pos = 1.3141592653589793238462
+
+	return rel_pos
 
 def get_pos(routes, track, routes_coords):
 	depart_route = routes[0]
 	arrival_route = routes[-1]
-	depart_position = get_rel_pos(depart_route, track[0], routes_coords)
-	arrival_position = get_rel_pos(arrival_route, track[-1], routes_coords)
+	depart_position = get_rel_pos(depart_route, track[0], routes_coords, True)
+	arrival_position = get_rel_pos(arrival_route, track[-1], routes_coords, False)
 
 	return depart_position, arrival_position
 
@@ -480,6 +486,36 @@ def plot_didi_map():
 	plt.scatter(x, y)
 
 def gen_routes(di_track_file, debug):
+	next_route_dict = {
+		'edgeL-1_0-1': 'edgeL-1-1_2',
+		'edgeL-1_1-1': 'edgeL-1-2',
+		'edgeL-2-1': 'edgeL-1-1_1',
+		'edgeL-1_2-1': 'edgeL-1-1_0',
+		'edgeL-1-2': 'edgeL-2-3',
+		'edgeL-3-2': 'edgeL-2-1',
+		'edgeL-2_0-2': 'edgeL-2-2_1',
+		'edgeL-2_1-2': 'edgeL-2-2_0',
+		'edgeL-2-3': 'edgeL-3-4',
+		'edgeL-4-3': 'edgeL-3-2',
+		'edgeL-3_0-3': 'edgeL-3-3_1',
+		'edgeL-3_1-3': 'edgeL-3-3_0',
+		'edgeL-3-4': 'edgeL-4-5',
+		'edgeL-5-4': 'edgeL-4-3',
+		'edgeL-4_0-4': 'edgeL-4-4_1',
+		'edgeL-4_1-4': 'edgeL-4-4_0',
+		'edgeL-4-5': 'edgeL-5-6',
+		'edgeL-6-5': 'edgeL-5-4',
+		'edgeL-5_0-5': 'edgeL-5-5_1',
+		'edgeL-5_1-5': 'edgeL-5-5_0',
+		'edgeL-5-6': 'edgeL-6-7',
+		'edgeL-7-6': 'edgeL-6-5',
+		'edgeL-6_0-6': 'edgeL-6-6_1',
+		'edgeL-6_1-6': 'edgeL-6-6_0',
+		'edgeL-6-7': 'edgeL-7-7_1',
+		'edgeL-7_1-7': 'edgeL-7-6',
+		'edgeL-7_0-7': 'edgeL-7-7_2',
+		'edgeL-7_2-7': 'edgeL-7-7_0'
+	}
 	TIMESTAMP_INTERVAL_MAX = 10
 	f_auto_gen_routes_xml = open('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto-28.rou.xml', 'w')
 	f_track = open(di_track_file, 'r')
@@ -487,7 +523,7 @@ def gen_routes(di_track_file, debug):
 	vehicle_tracks = {}
 	lines = f_track.readlines()
 	abnormal_ctr = 0
-	for line in lines:
+	for line in lines[0:20000]:
 		line = line.split(',')
 		vehicle_id = line[0]
 		timestamp = line[1]
@@ -524,6 +560,7 @@ def gen_routes(di_track_file, debug):
 
 			fined_route_coords = gen_route_coords('/home/nlp/bigsur/devel/didi/sumo/didi_contest/di.kun.net.xml')		
 
+			vehicle_track_ori = copy.deepcopy(vehicle_track)
 			start_idx, stop_idx, fine_vehicle_track = find_route(vehicle_track, fined_route_coords)
 			print(str(start_idx) + ',' + str(stop_idx))
 			if start_idx == -1 and stop_idx == -1:
@@ -531,8 +568,8 @@ def gen_routes(di_track_file, debug):
 				print("invalid vehicle track len: " + str(len(fine_vehicle_track)))
 				continue
 
-			timestamp_start, start_pos_x, start_pos_y, depart_spd = fine_vehicle_track[0]
-			timestamp_stop, stop_pos_x, stop_pos_y, arrival_spd = fine_vehicle_track[-1]
+			timestamp_start, start_pos_x, start_pos_y, depart_spd = vehicle_track_ori[0]
+			timestamp_stop, stop_pos_x, stop_pos_y, arrival_spd = vehicle_track_ori[-1]
 			timestamp_start -= TIMESTAMP_BASE
 			timestamp_stop  -= TIMESTAMP_BASE
 
@@ -543,9 +580,15 @@ def gen_routes(di_track_file, debug):
 			routes_list = find_route_name(start_idx, stop_idx, vehicle_pos, fined_route_coords)
 			#for route in routes_list:
 			#	print(route)
-			routes_str = ' '.join(routes_list)
 
 			depart_pos, arrival_pos = get_pos(routes_list, vehicle_pos, fined_route_coords)
+
+			# special return result indicating adding last route.
+			if arrival_pos == 1.3141592653589793238462:
+				routes_list.append(next_route_dict[routes_list[-1]])
+				arrival_pos = 5.0
+
+			routes_str = ' '.join(routes_list)
 
 			route_lists.append([cur_vehicle_id, timestamp_start, depart_pos, depart_spd, arrival_pos, arrival_spd, routes_str])
 
@@ -555,7 +598,7 @@ def gen_routes(di_track_file, debug):
 				plt.xlim(521400 - 200, 521769 + 200)
 				plt.ylim(53371 - 200, 58722 + 200)
 				plot_didi_map()
-				per_vehicle_track = np.array(fine_vehicle_track)
+				per_vehicle_track = np.array(vehicle_track_ori)
 				timestamp, x, y, spd = per_vehicle_track.T
 				plt.scatter(x[0], y[0], color='r')
 				plt.plot(x, y, color = 'r')
@@ -620,9 +663,24 @@ def finetune_routes():
 
 		net_tree.write(route_file)
 
+def check_routes():
+	route_file = "/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto-28.rou.xml"
+	net_tree = ET.ElementTree(file=route_file)
+	net_tree_root = net_tree.getroot()
+	vehicles = net_tree_root.findall('vehicle')
+	for vehicle in vehicles:
+		depart_pos = float(vehicle.attrib['departPos'])
+		arrival_pos = float(vehicle.attrib['arrivalPos'])
+		route = vehicle.find('route')
+		edges = route.attrib['edges']
+		edge_list = edges.split(' ')
+		if len(edge_list) == 1:
+			if depart_pos > arrival_pos:
+				print(vehicle.attrib['id'])
+
 def finetune_results():
 	output_str = ""
-	ori_output = "119 123 5 7 36 5 8 256 5 32 117 7 186 32 89 7 122 13 5 32 78 7 89 56 54 7 33 7 32 116 7 97 32"
+	ori_output = "46 145 5 7 32 149 17 259 5 32 173 7 148 37 -0 7 53 12 5 34 96 68 107 33 97 23 33 13 33 87 9 120 49"
 	oris = ori_output.split(' ')
 	num_tl = 7
 	ori_ctr = 0
@@ -670,7 +728,8 @@ if __name__ == '__main__':
     #calc_distance()
     #track_stats(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
     #draw_veihcle_track(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track.txt')
-    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track_sorted.txt', debug=False)
+    gen_routes(di_track_file='/home/nlp/bigsur/data/diditech/vehicle_track_sorted.txt', debug=True)
     #split_routes(routes_file='/home/nlp/bigsur/devel/didi/sumo/didi_contest/di-auto.rou.xml')
     #finetune_routes()
+    #check_routes()
     #finetune_results()
